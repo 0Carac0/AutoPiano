@@ -27,8 +27,9 @@ try:
             sleep(0.5)
 
 except KeyboardInterrupt:
+    Pedal.off()
     for i in range(NB_CHIP):
         ls_ChipBoard[i].open()
         for y in range(NB_PIN):
             ls_ChipBoard[i].digitalWrite(y, MCP23S17.LEVEL_LOW)
-    print("STOOOOOOOOOOOP")
+    print("Arrêt de l'utilisateur")

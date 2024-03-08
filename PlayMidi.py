@@ -35,4 +35,4 @@ try:
                         print('Pédal on')
                         
 except KeyboardInterrupt:
-    print("STOOOOOOOOOOOP")
+    print("Arrêt de l'utilisateur")
