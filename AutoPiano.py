@@ -6,10 +6,12 @@ import mido
 import sys
 import time
 import threading
+import os
 
 NB_CHIP = 8
 NB_PIN = 16
 Pedal = LED(21)
+stop_flag = threading.Event()
 
 # Définition de la classe qui gère la pédale
 class PedalManager:
@@ -26,7 +28,8 @@ class PedalManager:
         self.ls_ActionPedal.append(False)
         
     def Execute(self):
-        while True:
+        # La boucle while s'arretera si le stop_flag est activé
+        while not stop_flag.is_set():
             # Si notre file d'attente n'est pas vide:
             if not len(self.ls_ActionPedal) == 0:
                 # Si le premier élément de la file d'attente est un "True" alors, on appuie sur la pédale, puis on temporise et on supprime cet élément de la file.
@@ -34,13 +37,11 @@ class PedalManager:
                     Pedal.on()
                     time.sleep(0.2)
                     del self.ls_ActionPedal[0]
-                    print('Pédal on')
                 # Si le premier élément de la file d'attente est autre chose que "True" alors, on relâche la pédale, puis on temporise et on supprime cet élément de la file.
                 else:
                     Pedal.off()
                     time.sleep(0.2)
                     del self.ls_ActionPedal[0]
-                    print('Pédal off')
 
 try:
 
@@ -68,7 +69,8 @@ try:
         print("Aucun fichier n'a été sélectionné.")
         sys.exit()
     else:
-        print("Fichier sélectionné :", fichier)
+        nom_fichier = os.path.basename(fichier)
+        print("Lancement de la musique :", nom_fichier)
 
     # Lit le fichier midi et extrait ses données
     mid = mido.MidiFile(fichier)
@@ -123,11 +125,15 @@ try:
                     else:
                         pedalManager.On()
 
-# Si l'utilisateur arrête le programme, on reset tout les pins pour éviter que les électro-aimants s'actionnent au redémarrage
+# Si la musique se termine ou l'utilisateur arrête le programme, on reset tout les pins pour éviter que les électro-aimants s'actionnent au redémarrage
 except KeyboardInterrupt:
-    Pedal.off()
-    for i in range(NB_CHIP):
-        ls_ChipBoard[i].open()
-        for y in range(NB_PIN):
-            ls_ChipBoard[i].digitalWrite(y, MCP23S17.LEVEL_LOW)
-    print("Arrêt de l'utilisateur")
+    print("\nArrêt de l'utilisateur")
+    pass
+
+stop_flag.set()
+Pedal.off()
+for i in range(NB_CHIP):
+    for y in range(NB_PIN):
+        ls_ChipBoard[i].digitalWrite(y, MCP23S17.LEVEL_LOW)
+    ls_ChipBoard[i].close()
+print("Fin du programme")
