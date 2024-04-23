@@ -1,8 +1,8 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 from markupsafe import escape
-from flask import request
 import os
 import json
+
 
 def getPath(number = 0) :
 	try :
@@ -19,7 +19,7 @@ def getPath(number = 0) :
 	elif number == 2 :
 		return musicPath
 	else :
-		print(f"Mauvais argument spécifié pour la fonction 'getPath'.")
+		print(f"Mauvais argument spécifié pour la fonction 'getPath' : {number}")
 		return 0
 
 def refreshData() :
@@ -39,12 +39,28 @@ def refreshData() :
 		print(f"Aucune musique détectée sous le répertoire {musicPath}")
 		return 0
 		
-def getData() :
-	if refreshData() :
+def getData(cursor = "all", refresh = "1") :							# Arguments : 'cursor' pour obtenir une variable spécifique / 'refresh' à mettre à zéro pour ne pas mettre à jour la database
+	musicPath = getPath(2)
+	databaseOK = 0 
+	if str(refresh) == "0" :
+		if os.path.exists(musicPath) :
+			databaseOK = 1
+	elif refreshData() :
+		databaseOK = 1
+	if databaseOK == 1 :
 		with open("list.json", "r") as f :
 			data = json.load(f)
-		listMusic = data["listMusic"]
-		return listMusic
+			listMusic = data["listMusic"]
+		if str(cursor) == "all" :
+			return listMusic
+		else :
+			try : 
+				cursor = int(cursor)
+				music = listMusic[cursor]
+				return music
+			except : 
+				print(f"Mauvais argument 'cursor' spécifié pour la fonction 'refreshData' : {cursor} ; max {len(listMusic) -1}")
+				return 0
 	else :
 		return 0
 
@@ -58,9 +74,31 @@ def index():
 	return render_template('xHtml_mainMenu.html')
 
 @app.route('/play')
-def play():
+def bloup():
+	return render_template('HTML_play.html', data = getData())
+
+@app.route('/playing')
+def HTML_playing():
+	return render_template('HTML_playing.html', data = getData())
+	
+	
+#render_template('HTML_playing.html')
+
+"""
+@app.route('/choice' method=['POST'])
+def bouton() :
+	if form.validate_on_submit() :
+		if 'download' in request.form :
+			print ('Bouton 1')
+		elif 'watch' in request.form :
+			print ('Bouton 2')
+
+@app.route('/plays') #, methods=['GET', 'POST'])
+def plays():
 	listMusic = getData()
-	return "<h3><p>Liste des titres :</p></h3> <p>{liste}</p>".format(liste = listMusic)
+	return requests.form["select_music"]
+"""
+
 
 @app.route('/listedit')
 def listedit():
@@ -71,5 +109,5 @@ def howitworks():
 	return "<p>Pouf pouf tuto</p>"
 
 if __name__ == '__main__' :
-	app.run(debug=True, use_reloader=True)
+	app.run(host="0.0.0.0", port=8000, debug=True, use_reloader=True)
 
