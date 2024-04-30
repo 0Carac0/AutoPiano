@@ -3,7 +3,7 @@ import requests
 from markupsafe import escape
 import os
 import json
-import PianoManager
+from PianoManager import PianoManager
 
 
 def same(var1, var2 = 1) :												# Petite fonction simple qui permet de comparer deux variables de types différents en les convertissant temporairement en 'str'
@@ -15,15 +15,36 @@ def same(var1, var2 = 1) :												# Petite fonction simple qui permet de com
 	except :
 		return 0
 
+
+def digFolder(initialPath, folderPath) :								# Cette fonction récursive ouvre un dossier, récupère les chemins des fichiers et ouvre tous les autres dossiers pour récupérer chaque fichier existant dans toute l'arborescence.
+	totalPath = initialPath + "/" + folderPath
+	print(totalPath)
+	listMusic = []
+	for i in os.listdir(totalPath) :									# Boucle 'for' qui va consulter la liste des fichiers présents dans le dossier interne au dossier des musiques ; 'i' prend le nom de chacun de ces fichiers
+		print(i)												
+		try :
+			if os.path.isdir(totalPath + "/" + i) :						# Si 'i' est un dossier ...
+				try :
+					for j in digFolder(initialPath, folderPath + "/" + i) :	# ...cette fonction s'appelle elle-même (=on dit qu'elle est récursive) afin d'analyser le dossier en question : en extrait chaque fichier '.mid' et ouvre chaque dossier imbriqué...
+						listMusic.append(j)								# ...puis ajoute chaque fichier à la liste. NOTE : chaque fichier est précédé par son répertoire relatif à partir du fichier des musiques, afin d'être plus facilement traitable par le programme
+				except :
+					print(f"Fichier {i} vide")
+			elif i[-4:] == ".mid" :										# Si le nom du fichier est de type 'midi' (nom de fichier se terminant par '.mid')...
+				listMusic.append(folderPath + "/" + i[:-4])				# ...l'ajoute à la liste 'listMusic', accompagné par son répertoire à partir du dossier 'Musique_midi''
+		except :
+			pass
+	return listMusic													# Renvoie la liste des musiques trouvées par la fonction (et par chacune de ses itérations internes, s'il y en a eu)
+
+
 def getPath(number = "all", debug = 0) :								# Arguments : 'number' à mettre à 1 / 2 / 3 pour obtenir respectivement le chemin du programme python en cours, celui du dossier contenant les musiques ou celui du fichier 'playing.json' (renvoie les deux dans un tuple par défaut) | 'debug' à mettre à 1 pour obtenir le chemin dans lequel devrait normalement se trouver le dossier des musiques
 	initPath = os.path.dirname(__file__)								# Enregistre le chemin actuel du fichier
 	folderPath = str(os.path.normpath(initPath + os.sep + os.pardir))	# Équivalent à 'initPath', mais avec un retour en arrière
 	
 	musicPath = 0
-	for i in (" ", "_", "s ", "s_", "") :								# Cherche un dossier appelé 'Musique_midi' (accepte certaines variations telles que 'Musiques midi' ou 'Musiquemidi' grâce à la boucle 'for')
+	for i in ("", "s ", "s_", " ", "_") :								# Cherche un dossier appelé 'Musique_midi' (accepte certaines variations telles que 'Musiques midi' ou 'Musiquemidi' grâce à la boucle 'for')
 		print (initPath + "/Musique" + i + "midi")
 		if os.path.exists(initPath + "/Musique" + i + "midi") or debug :
-			musicPath = initPath + "/Musiques_midi"						# Enregistre le chemin du dossier des musiques (équivalent au chemin du programme actuel mais en remplaçant le dernier répertoire par 'Musique_midi')
+			musicPath = initPath + "/Musique" + i + "midi"						# Enregistre le chemin du dossier des musiques (équivalent au chemin du programme actuel mais en remplaçant le dernier répertoire par 'Musique_midi')
 			break
 	print("MusicPath =", musicPath)
 		
@@ -61,9 +82,15 @@ def refreshData() :														# Synchronise la liste des musiques avec les fi
 	try :
 		if musicPath == 0 :
 			raise Exception('Dossier des musiques introuvable')
-		for i in os.listdir(musicPath) :								# Boucle 'for' qui va consulter la liste des fichiers présents dans le dossier des musiques ; 'i' prend le nom de chacun de ces fichiers
+		for i in os.listdir(musicPath) :								# Boucle 'for' qui va consulter la liste des fichiers présents dans le dossier des musiques ; 'i' prend le nom de chacun de ces fichiers														
 			try :
-				if i[-4:] == ".mid" :									# Si le nom du fichier est de type 'midi' (nom de fichier se terminant par '.mid')...
+				if os.path.isdir(musicPath + '/' + i) :
+					try :
+						for j in digFolder(musicPath, i) :
+							listMusic.append(j)
+					except :
+						print(f"Fichier {i} vide")
+				elif i[-4:] == ".mid" :									# Si le nom du fichier est de type 'midi' (nom de fichier se terminant par '.mid')...
 					listMusic.append(i[:-4])							# ...cette ligne enlève les 4 derniers caractères de son nom ('.mid') avant de l'ajouter à la liste 'listMusic'.
 			except :
 				pass
@@ -112,7 +139,7 @@ print(" >", app, "on path", "'" + getPath(1) + "'")
 def index():
 	musicData = getData()
 	if same(musicData, 0) :
-		return f"<p>Dossier des musiques introuvable.</p><p>Essayez d'enregistrer des fichiers MIDI sous le répertoire {getPath(2, debug = 1)}</p>"
+		return f"<p>Musiques introuvable.</p><p>Essayez d'enregistrer des fichiers MIDI sous le répertoire {getPath(2, debug = 1)}</p>"
 	else :
 		return render_template('dropDown.php', data = musicData)		# Affiche le fichier 'dropDown.php', qui est écrit en HTML (partie texte) avec quelques intégrations PHP (partie dynamique), en lui envoyant la liste des musiques mise à jour (via 'getData()') en tant qu'argument
 
@@ -132,7 +159,11 @@ def music():
 				pass
 				
 		print (musicToPlay)
-		return musicToPlay
+		
+		pianoManager = PianoManager()
+		
+		pianoManager.play(getPath(2) + "/" + musicToPlay)
+		return getPath(2) + musicToPlay
 	else :
 		return "Échec de la méthode"
 
