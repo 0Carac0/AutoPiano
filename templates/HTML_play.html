@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>AutoPiano Play</title>
+	</head>
+	<body>
+		<div id="play">
+			<form action="" method="POST">
+				<select name="select_music">
+				{% for item in data %}
+				<p>{{ item }}</p>
+				<option value="{{ item }}">{{ item }}</option>
+				{% endfor %}
+				<input type="submit" value="Jouer">
+			</form>
+		</div>
+	</body>
+</html>
