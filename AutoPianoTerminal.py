@@ -34,4 +34,4 @@ except KeyboardInterrupt:
     print("\nArrêt de l'utilisateur")
 
 # Arret du thread dans le piano manager
-pianoManager.stop()
+pianoManager.disableNotesPedal()

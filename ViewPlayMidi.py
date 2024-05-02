@@ -20,19 +20,19 @@ try:
 
             case 'note_on':
                 if not message.velocity == 0:
-                    print('Note on', message.note)
+                    print(round(message.time, 2), 'Note on', message.note)
                 else:
-                    print('Note off', message.note)
+                    print(round(message.time, 2), 'Note off', message.note)
 
             case 'note_off':
-                print('Note off', message.note)
+                print(round(message.time, 2), 'Note off', message.note)
 
             case 'control_change':
                 if message.control == 64:
                     if message.value == 0:
-                        print('Pédal off')
+                        print(round(message.time, 2), 'Pédal off')
                     else:
-                        print('Pédal on')
+                        print(round(message.time, 2), 'Pédal on')
                         
 except KeyboardInterrupt:
     print("Arrêt de l'utilisateur")
