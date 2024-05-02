@@ -162,6 +162,7 @@ class PianoManager():
         while not self._isReady:
             self._pathMidi = ''
             self._isStoped = False
+            time.sleep(0.05)
         self._pathMidi = PathMidi               # Transfère l'argument vers l'attribut
         self._start_time = time.time()          # Enregistre le temps pour savoir quand la musique à été lancée
         self._threadpianoManagerEvent.set()    # Lance le thread pour jouer la musique
