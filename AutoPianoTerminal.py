@@ -21,7 +21,7 @@ try:
 
         # Affiche une barre de progression de la musique dans le terminal
         with alive_bar(pianoManager.totalTimeMusic(fichier), title='Playing', length=20, bar='smooth', spinner="notes2") as bar:
-            while pianoManager.IsPlaying:
+            while not pianoManager.isStoped:
                 time.sleep(1)
                 bar()
         pianoManager.threadJoin()
