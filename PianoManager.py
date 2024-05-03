@@ -23,7 +23,7 @@ class NotesPedalManager():
 
         # Ouverture de la communication SPI vers les chips
         self._spi = spidev.SpiDev()
-        self._spi.open()
+        self._spi.open(0, 0)
         self._spi.max_speed_hz = 10000000
 
         # Déclaration des chips IO qui controlent les électro-aimants
@@ -34,7 +34,7 @@ class NotesPedalManager():
         self._Pedal.off()
 
     # Méthode pour Activer ou désactiver une note
-    def playNote(self, note, time, value):
+    def playNote(self, note, value):
         '''
         Pour bien comprendre cette partie, prenons comme exemple la note midi 52.
         On a besoin de deux info pour activer le bon électro-aimant qui jouera la note 52:
@@ -58,14 +58,9 @@ class NotesPedalManager():
         Il ne nous reste plus qu'à dire si l'on veut allumer la pin (LEVEL_HIGH) ou l'éteindre (LEVEL_LOW).
         '''
         if NotesPedalManager.OFFSET_PIN_MIDO <= note and note < NotesPedalManager.OFFSET_PIN_MIDO + NotesPedalManager.NB_NOTE:
-            self._ls_ChipBoard[(note - NotesPedalManager.OFFSET_PIN_MIDO)//NotesPedalManager.NB_PIN].setMemoryOut((note - NotesPedalManager.OFFSET_PIN_MIDO)%NotesPedalManager.NB_PIN, value)
+            self._ls_ChipBoard[(note - NotesPedalManager.OFFSET_PIN_MIDO)//NotesPedalManager.NB_PIN].setOut((note - NotesPedalManager.OFFSET_PIN_MIDO)%NotesPedalManager.NB_PIN, value)
         else:
             print("[ERROR] Note out of range (",NotesPedalManager.OFFSET_PIN_MIDO,"-",NotesPedalManager.OFFSET_PIN_MIDO + NotesPedalManager.NB_NOTE - 1,") Note =", note)
-        
-        # Actualise les sorties des chips
-        if time > 0:
-            for i in range(NotesPedalManager.NB_CHIP):
-                self._ls_ChipBoard[i].writeOut()
 
     # Méthode pour Activer ou désactiver la pédale
     def PedalOn(self):
@@ -95,8 +90,6 @@ class ChipBoard():
         self._deviceID = deviceID    # Numéro de la chip
         self._GPIOA = 0x00           # Mémoire de l'état des pines de sortie de la partie A
         self._GPIOB = 0x00           # Mémoire de l'état des pines de sortie de la partie B
-        self._lastGPIOA = 0x00       # Dernier message des pines de sortie de la partie A
-        self._lastGPIOB = 0x00       # Dernier message des pines de sortie de la partie B
 
         self.writeRegister(ChipBoard.MCP23S17_IOCON, 0x08)
 
@@ -108,7 +101,7 @@ class ChipBoard():
         self.disableAllPins()
 
     # Méthode pour set la valeur de la pin dans la mémoire
-    def setMemoryOut(self, pin, value):
+    def setOut(self, pin, value):
 
         if 0 <= pin and pin < NotesPedalManager.NB_PIN:
             # Regarde à quel partie (A ou B) appartient la pin et envoie la valeur sur la bonne adresse
@@ -117,22 +110,15 @@ class ChipBoard():
                     self._GPIOA |= 1 << pin
                 else:
                     self._GPIOA &= ~(1 << pin)
+                self.writeRegister(ChipBoard.MCP23S17_GPIOA, self._GPIOA)
             else:
                 if value:
                     self._GPIOB |= 1 << (pin & 0x07)
                 else:
                     self._GPIOB &= ~(1 << (pin & 0x07))
+                self.writeRegister(ChipBoard.MCP23S17_GPIOB, self._GPIOB)
         else:
             print("[ERROR] Pin out of range ( 0 -",NotesPedalManager.NB_PIN,") pin =", pin)
-
-    # Envoie l'information au chip si la configuration des sorties à changé
-    def writeOut(self):
-        if not self._lastGPIOA == self._GPIOA:
-            self._lastGPIOA = self._GPIOA
-            self.writeRegister(ChipBoard.MCP23S17_GPIOA, self._GPIOA)
-        if not self._lastGPIOB == self._GPIOB:
-            self._lastGPIOB = self._GPIOB
-            self.writeRegister(ChipBoard.MCP23S17_GPIOB, self._GPIOB)
 
     # Méthode pour ecrire une valeur dans un registe du chip
     def writeRegister(self, register, value):
@@ -142,6 +128,8 @@ class ChipBoard():
     def disableAllPins(self):
         self.writeRegister(ChipBoard.MCP23S17_GPIOA, 0x00)
         self.writeRegister(ChipBoard.MCP23S17_GPIOB, 0x00)
+        self._GPIOA     = 0
+        self._GPIOB     = 0
 
 # Définition de la classe qui gère l'extration des notes et l'appuie des touches
 class PianoManager():
@@ -151,7 +139,7 @@ class PianoManager():
         self._isReady = False                                                            # Indique si le thread est pret à lancer une musique
         self._isStoped = True                                                            # Condition pour dire s'il est entraint de jouer une musique
         self._threadpianoManagerEvent = threading.Event()                               # Créer un event pour relancer le thread de la musique
-        self._threadpianoManager = threading.Thread(target=self._execute, daemon=True)   # Création du thread pour pianoManager
+        self._threadpianoManager = threading.Thread(target=self.execute, daemon=True)   # Création du thread pour pianoManager
         self._threadpianoManager.start()                                                 # Lance le thread PianoManager
         self._notesPedalManager = NotesPedalManager()                                    # Objet qui gère les notes et la pédal
 
@@ -160,8 +148,7 @@ class PianoManager():
 
         # Verification que si une musique est déjà lancé, il l'arrête avant dans lancer une autre
         while not self._isReady:
-            self._pathMidi = ''
-            self._isStoped = False
+            self._isStoped = True
             time.sleep(0.05)
         self._pathMidi = PathMidi               # Transfère l'argument vers l'attribut
         self._start_time = time.time()          # Enregistre le temps pour savoir quand la musique à été lancée
@@ -172,15 +159,12 @@ class PianoManager():
         while True:
 
             # Attend qu'ont le lance
+            self._notesPedalManager.disableAll()
+            self._isStoped = True
             self._isReady = True
             self._threadpianoManagerEvent.wait()
-            self._notesPedalManager.disableAll()
             self._isReady = False
             self._isStoped = False
-
-            # Attend que l'information du nom de la musique arrive
-            while self._pathMidi == '':
-                pass
 
             # Lit le fichier midi et extrait ses données
             mid = mido.MidiFile(self._pathMidi)
@@ -188,25 +172,21 @@ class PianoManager():
             # Lancement de la musique
             for message in mid.play():
 
-                # Attend qu'ont relance
-                if self._isStoped:
-                    self._threadpianoManagerEvent.wait()
-
                 # S'il la musique est arrêté on arrête
-                if self._pathMidi == '':
+                if self._isStoped:
                     break
 
                 match message.type:
                     # Si le message du fichier midi est du type "note_on"
                     case 'note_on':
                         if message.velocity == 0:
-                            self._notesPedalManager.playNote(message.note, message.time, False)
+                            self._notesPedalManager.playNote(message.note, False)
                         else:
-                            self._notesPedalManager.playNote(message.note, message.time,  True)
+                            self._notesPedalManager.playNote(message.note,  True)
 
                     # Si le message du fichier midi est du type "note_off"
                     case 'note_off':
-                        self._notesPedalManager.playNote(message.note, message.time,  False)
+                        self._notesPedalManager.playNote(message.note,  False)
 
                     # Si le message du fichier midi est du type "control_change",
                     # le "control_change" est un message pour tout ce qui est autre qu'une note.
@@ -219,26 +199,9 @@ class PianoManager():
                             else:
                                 self._notesPedalManager.PedalOn()
 
-            # Lorsque la musique est arretée ou terminée, désactive la pédal et toutes les touches.
-            self._pathMidi == ''
-            self._isStoped = True
-            self._notesPedalManager.disableAll()
-
     # Méthode pour arreter la musique
     def stop(self):
         self._isStoped = True
-
-    # Supprime la musique en mémoire
-    def clear(self):
-        self._pathMidi = ''
-
-    # Méthode pour arrêter la musique
-    def restart(self):
-        if not self._pathMidi == '' and self._isStoped:
-            self._isStoped = False
-            self._threadpianoManagerEvent.set()
-        else:
-            print("[ERROR] The player is not stop.")
 
     # Méthode qui permet de mettre en pause le programme jusqu'à que la musique s'arrête
     def threadJoin(self):
@@ -263,9 +226,11 @@ class PianoManager():
     # Renvoie quel musique il est en train de jouer
     @property
     def whatPlay(self):
-        return self._pathMidi
-    
+        if self._isStoped:
+            return ''
+        else:
+            return self._pathMidi
+
     # désactive les notes et la pédal
     def disableNotesPedal(self):
         self._notesPedalManager.disableAll()
-
