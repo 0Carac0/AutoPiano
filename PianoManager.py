@@ -91,11 +91,11 @@ class ChipBoard():
         self._GPIOA = 0x00           # Mémoire de l'état des pines de sortie de la partie A
         self._GPIOB = 0x00           # Mémoire de l'état des pines de sortie de la partie B
 
-        self.writeRegister(ChipBoard.MCP23S17_IOCON, 0x08)
+        self.__writeRegister(ChipBoard.MCP23S17_IOCON, 0x08)
 
         # Set toutes les pins en sorties
-        self.writeRegister(ChipBoard.MCP23S17_IODIRA, 0x00)
-        self.writeRegister(ChipBoard.MCP23S17_IODIRB, 0x00)
+        self.__writeRegister(ChipBoard.MCP23S17_IODIRA, 0x00)
+        self.__writeRegister(ChipBoard.MCP23S17_IODIRB, 0x00)
 
         # Désactive toutes les pines
         self.disableAllPins()
@@ -110,18 +110,18 @@ class ChipBoard():
                     self._GPIOA |= 1 << pin
                 else:
                     self._GPIOA &= ~(1 << pin)
-                self.writeRegister(ChipBoard.MCP23S17_GPIOA, self._GPIOA)
+                self.__writeRegister(ChipBoard.MCP23S17_GPIOA, self._GPIOA)
             else:
                 if value:
                     self._GPIOB |= 1 << (pin & 0x07)
                 else:
                     self._GPIOB &= ~(1 << (pin & 0x07))
-                self.writeRegister(ChipBoard.MCP23S17_GPIOB, self._GPIOB)
+                self.__writeRegister(ChipBoard.MCP23S17_GPIOB, self._GPIOB)
         else:
             print("[ERROR] Pin out of range ( 0 -",NotesPedalManager.NB_PIN,") pin =", pin)
 
     # Méthode pour ecrire une valeur dans un registe du chip
-    def writeRegister(self, register, value):
+    def __writeRegister(self, register, value):
         self._spiCom.xfer2([ChipBoard.MCP23S17_CMD_WRITE | ((self._deviceID) << 1), register, value])
 
     # Méthode pour désactiver toutes les pins
@@ -137,7 +137,6 @@ class PianoManager():
     def __init__(self):
 
         self._isReady = False                                                            # Indique si le thread est pret à lancer une musique
-        self._isStoped = True                                                            # Condition pour dire s'il est entraint de jouer une musique
         self._threadpianoManagerEvent = threading.Event()                               # Créer un event pour relancer le thread de la musique
         self._threadpianoManager = threading.Thread(target=self.execute, daemon=True)   # Création du thread pour pianoManager
         self._threadpianoManager.start()                                                 # Lance le thread PianoManager
@@ -147,9 +146,8 @@ class PianoManager():
     def play(self, PathMidi):
 
         # Verification que si une musique est déjà lancé, il l'arrête avant dans lancer une autre
-        while not self._isReady:
-            self._isStoped = True
-            time.sleep(0.05)
+        self._threadpianoManagerEvent.clear()
+        self.__WaitIsReady()
         self._pathMidi = PathMidi               # Transfère l'argument vers l'attribut
         self._start_time = time.time()          # Enregistre le temps pour savoir quand la musique à été lancée
         self._threadpianoManagerEvent.set()    # Lance le thread pour jouer la musique
@@ -160,11 +158,10 @@ class PianoManager():
 
             # Attend qu'ont le lance
             self._notesPedalManager.disableAll()
-            self._isStoped = True
+            self._threadpianoManagerEvent.clear()
             self._isReady = True
             self._threadpianoManagerEvent.wait()
             self._isReady = False
-            self._isStoped = False
 
             # Lit le fichier midi et extrait ses données
             mid = mido.MidiFile(self._pathMidi)
@@ -173,7 +170,7 @@ class PianoManager():
             for message in mid.play():
 
                 # S'il la musique est arrêté on arrête
-                if self._isStoped:
+                if not self._threadpianoManagerEvent.is_set():
                     break
 
                 match message.type:
@@ -199,13 +196,19 @@ class PianoManager():
                             else:
                                 self._notesPedalManager.PedalOn()
 
+    # Attand que le player soit arrêté
+    def __WaitIsReady(self):
+        while not self._isReady:
+            time.sleep(0.05)
+
     # Méthode pour arreter la musique
     def stop(self):
-        self._isStoped = True
+        self._threadpianoManagerEvent.clear()
+        self.__WaitIsReady()
 
     # Méthode qui permet de mettre en pause le programme jusqu'à que la musique s'arrête
     def threadJoin(self):
-        self._threadpianoManager.join()
+        self.__WaitIsReady()
     
     # Renvoie depuis combien de temps la musique se joue.
     @property
@@ -221,16 +224,13 @@ class PianoManager():
     # Renvoie Vrais si la musique est arrêté
     @property
     def isStoped(self):
-        return self._isStoped
+        return self._isReady
     
     # Renvoie quel musique il est en train de jouer
     @property
     def whatPlay(self):
-        if self._isStoped:
+        if self._isReady:
             return ''
         else:
             return self._pathMidi
 
-    # désactive les notes et la pédal
-    def disableNotesPedal(self):
-        self._notesPedalManager.disableAll()
