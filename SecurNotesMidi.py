@@ -1,3 +1,4 @@
+
 import mido
 from tkinter import filedialog
 import sys
@@ -5,7 +6,7 @@ import sys
 # Paramètre de base
 MinTimeOffPedal = 0.2
 MinTimeOffNote = 0.1
-MinTimeOnNote = 0.035
+MinTimeOnNote = 0.05
 MaxTimeOnNote = 4
 
 # Sélection du fichier midi
@@ -35,7 +36,7 @@ while not MinTimeModif:
             MinTimeOffPedal = ls_PrametreTime[0]
             MinTimeOffNote = ls_PrametreTime[1]
             MinTimeOnNote = ls_PrametreTime[2]
-            MinTimeOnNote = ls_PrametreTime[3]
+            MaxTimeOnNote = ls_PrametreTime[3]
             
         print("Paramètre enregistré.")
         MinTimeModif = True
@@ -233,97 +234,144 @@ if len(midiFileIn.tracks) == 0:
 # Creation d'une liste pour enregistrer les messages (note 20 indique la pédale)
 ls_noteInfo = []
 
-# Lancement de la musique et enregistre chaque message à quel temps il est arrivé
-currentTime = 0
+# Lancement de la musique et enregistre chaque message à quel temps il est arrivé et aussi avec la pédal
+CurrentTime = 0
 for message in midiFileIn.playNoTime():
 
-    currentTime += message.time
+    # Calcul du temps du message
+    CurrentTime += message.time
 
     match message.type:
 
         case 'note_on':
             if message.velocity == 0:
-                ls_noteInfo.append([currentTime, False, message.note])
+                # C'est un message de désactivation de note
+                ls_noteInfo.append([CurrentTime, False, message.note])
             else:
-                ls_noteInfo.append([currentTime, True, message.note])
+                # C'est un message d'activation de note
+                ls_noteInfo.append([CurrentTime, True, message.note])
 
         case 'note_off':
-            ls_noteInfo.append([currentTime, False, message.note])
+            # C'est un message de désactivation de note
+            ls_noteInfo.append([CurrentTime, False, message.note])
 
         case 'control_change':
             if message.control == 64:
                 if message.value == 0:
-                    ls_noteInfo.append([currentTime, False, 20])
+                    # C'est un message de désactivation de pédale
+                    ls_noteInfo.append([CurrentTime, False, 20])
                 else:
-                    ls_noteInfo.append([currentTime, True, 20])
+                    # C'est un message d'activation de pédale
+                    ls_noteInfo.append([CurrentTime, True, 20])
 
+# Analyse des temps dans le ficher Midi et modification des ses temps
 delta = 0
-
 for cursor in range(len(ls_noteInfo)):
     
-    try:
-        if ls_noteInfo[cursor][1] == False:
+    # Si c'est un message d'activation
+    if ls_noteInfo[cursor][1]:
 
-            if ls_noteInfo[cursor][2] == 20:
-                # Verifie si la pédal est relacher assez long temps pour que elle puisse étouffé les cordes sinon on prevoit du temp
-                """
-                Avant
-                ####'_####
-
-                Après
-                ##__'_####
-                """
-                delta = 0
-                while not (ls_noteInfo[cursor + delta][1] == True and ls_noteInfo[cursor + delta][2] == 20):
-                    delta += 1
+        # Verifie si la note n'est pas trop long temps activée sinon on raccourcit le temp
+        # Va chercher en avant une désactivation de la même note
+        delta = 0
+        while True:
+            # A trouvé le message
+            if ls_noteInfo[cursor + delta][1] == False and ls_noteInfo[cursor + delta][2] == ls_noteInfo[cursor][2]:
+                # calcul de la difference de temps entre l'activation et la désactivation
                 deltaTime = ls_noteInfo[cursor + delta][0] - ls_noteInfo[cursor][0]
-                if deltaTime < MinTimeOffPedal:
-                    ls_noteInfo[cursor][0] -= MinTimeOffPedal - deltaTime
-
-            else:
-                # Verifie si la note est relachée assez long temps pour qu'elle puisse retaper les cordes sinon on prevoit du temps
-                # Mais sinon aussi si la note est jouée assez long temps pour que le martau arrive à la corde.
-
-                """
-                Avant
-                ###'_##     __#'___
-
-                Après
-                #__'_##     __#'##_
-                """
-                delta = 0
-                while not (ls_noteInfo[cursor + delta][1] == True and ls_noteInfo[cursor + delta][2] == ls_noteInfo[cursor][2]):
-                    delta += 1
-                deltaTime = ls_noteInfo[cursor + delta][0] - ls_noteInfo[cursor][0]
-                if deltaTime < MinTimeOffNote:
-                    ls_noteInfo[cursor][0] -= MinTimeOffNote - deltaTime
-                else:
-                    delta = 0
-                    while not (ls_noteInfo[cursor + delta][1] == True and ls_noteInfo[cursor + delta][2] == ls_noteInfo[cursor][2]):
-                        delta -= 1
-                    deltaTime = ls_noteInfo[cursor][0] - ls_noteInfo[cursor + delta][0]
-                    if deltaTime < MinTimeOnNote:
-                        ls_noteInfo[cursor][0] += MinTimeOnNote - deltaTime
-
-        else:
-            # Verifie si la note n'est pas trop long temps activée sinon on raccourcit le temp
-            """
-            Avant
-            __'####_
-
-            Après
-            __'##___
-            """
-            delta = 0
-            while not (ls_noteInfo[cursor + delta][1] == False and ls_noteInfo[cursor + delta][2] == ls_noteInfo[cursor][2]):
+                # Modification de la position dans le temps du message de désactivation si la difference de temps est trop grande
+                if deltaTime > MaxTimeOnNote:
+                    ls_noteInfo[cursor + delta][0] -= deltaTime - MaxTimeOnNote
+                break
+            # Si ce n'est pas le prochain message regarde encore plus en avant
+            if not (ls_noteInfo[cursor + delta][1] == False and ls_noteInfo[cursor + delta][2] == ls_noteInfo[cursor][2]):
                 delta += 1
-            deltaTime = ls_noteInfo[cursor + delta][0] - ls_noteInfo[cursor][0]
-            if deltaTime > MaxTimeOnNote:
-                ls_noteInfo[cursor + delta][0] -= deltaTime - MaxTimeOnNote
+            # S'il est arrivé a la fin du fichier alors il passe au prochain
+            if cursor + delta >= len(ls_noteInfo):
+                break
 
-    # Si la vérification va cherher une valeur qui n'existe pas il va juste passer au suivant
-    except IndexError:
-        pass
+    # Si c'est un message de désactivation
+    else:
+
+        # Si c'est un message de pédale
+        if ls_noteInfo[cursor][2] == 20:
+
+            # Verifie si la pédal est relacher assez long temps pour que elle puisse étouffé les cordes sinon on prevoit du temp       
+            # Va chercher en avant une activation de la pédale 
+            delta = 0
+            while True:
+                # A trouvé le message
+                if ls_noteInfo[cursor + delta][1] and ls_noteInfo[cursor + delta][2] == 20:
+                    # calcul de la difference de temps entre la désactivation et l'activation
+                    deltaTime = ls_noteInfo[cursor + delta][0] - ls_noteInfo[cursor][0]
+                    # Modification de la position dans le temps du message d'activation si la difference de temps est trop petite
+                    if deltaTime < MinTimeOffPedal:
+                        ls_noteInfo[cursor][0] -= MinTimeOffPedal - deltaTime
+                    break
+                # Si ce n'est pas le prochain message regarde encore plus en avant
+                if not (ls_noteInfo[cursor + delta][1] and ls_noteInfo[cursor + delta][2] == 20):
+                    delta += 1
+                # S'il est arrivé a la fin du fichier alors il passe au prochain calcul de message
+                if cursor + delta >= len(ls_noteInfo):
+                    break
+
+        # Si c'est un message de note
+        else:
+
+            # Verifie si la note est relachée assez long temps pour qu'elle puisse retaper les cordes sinon on prevoit du temps
+            # Va chercher en avant une activation de la même note 
+            delta = 0
+            while True:
+                # A trouvé le message
+                if ls_noteInfo[cursor + delta][1] and ls_noteInfo[cursor + delta][2] == ls_noteInfo[cursor][2]:
+                    # calcul de la difference de temps entre la désactivation et l'activation
+                    deltaTime = ls_noteInfo[cursor + delta][0] - ls_noteInfo[cursor][0]
+                    # Modification de la position dans le temps du message d'activation si la difference de temps est trop petite
+                    if deltaTime < MinTimeOffNote:
+                        ls_noteInfo[cursor][0] -= MinTimeOffNote - deltaTime
+                    else:
+                        # Mais sinon aussi verifie si la note est jouée assez long temps pour que le martau arrive à la corde.
+                        # Va chercher en arrière une activation de la même note
+                        delta = 0
+                        while True:
+                            # A trouvé le message
+                            if ls_noteInfo[cursor + delta][1] and ls_noteInfo[cursor + delta][2] == ls_noteInfo[cursor][2]:
+                                # calcul de la difference de temps entre l'activation et la désactivation
+                                deltaTime = ls_noteInfo[cursor][0] - ls_noteInfo[cursor + delta][0]
+                                # Modification de la position dans le temps du message de désactivation si la difference de temps est trop petite
+                                if deltaTime < MinTimeOnNote:
+                                    ls_noteInfo[cursor][0] += MinTimeOnNote - deltaTime
+                                break
+                            # Si ce n'est pas le précédent message regarde encore plus en arrière
+                            if not (ls_noteInfo[cursor + delta][1] and ls_noteInfo[cursor + delta][2] == ls_noteInfo[cursor][2]):
+                                delta -= 1
+                            # S'il est arrivé au début du fichier alors il passe au prochain calcul de message
+                            if cursor + delta < 0:
+                                break
+                    break
+                if not (ls_noteInfo[cursor + delta][1] and ls_noteInfo[cursor + delta][2] == ls_noteInfo[cursor][2]):
+                    delta += 1
+                # S'il est arrivé a la fin du fichier alors il regarde pour la seconde verification
+                if cursor + delta >= len(ls_noteInfo):
+                    # Qui verifie si la note est jouée assez long temps pour que le martau arrive à la corde.
+                    # Va chercher en arrière une activation de la même note
+                    delta = 0
+                    while True:
+                        # A trouvé le message
+                        if ls_noteInfo[cursor + delta][1] and ls_noteInfo[cursor + delta][2] == ls_noteInfo[cursor][2]:
+                            # calcul de la difference de temps entre l'activation et la désactivation
+                            deltaTime = ls_noteInfo[cursor][0] - ls_noteInfo[cursor + delta][0]
+                            # Modification de la position dans le temps du message de désactivation si la difference de temps est trop petite
+                            if deltaTime < MinTimeOnNote:
+                                ls_noteInfo[cursor][0] += MinTimeOnNote - deltaTime
+                            break
+                        # Si ce n'est pas le précédent message regarde encore plus en arrière
+                        if not (ls_noteInfo[cursor + delta][1] and ls_noteInfo[cursor + delta][2] == ls_noteInfo[cursor][2]):
+                            delta -= 1
+                        # S'il est arrivé au début du fichier alors il passe au prochain calcul de message
+                        if cursor + delta < 0:
+                            break
+                    break
 
 ls_noteInfo.sort(key=lambda x: x[0])
 
@@ -380,14 +428,18 @@ for cursor in range(len(ls_noteInfo)):
         deltaTime = mido.second2tick(ls_noteInfo[cursor][0] - ls_noteInfo[cursor - 1][0], ticksPerBeat, tempo)
 
     if ls_noteInfo[cursor][2] == 20:
-        if ls_noteInfo[cursor][1] == True:
+        if ls_noteInfo[cursor][1]:
+            # C'est un message d'activation de pédal
             track.append(mido.Message('control_change', control=64,  value=100, time=deltaTime))
         else:
+            # C'est un message de désactivation de pédal
             track.append(mido.Message('control_change', control=64,  value=0, time=deltaTime))
     else:
-        if ls_noteInfo[cursor][1] == True:
+        if ls_noteInfo[cursor][1]:
+            # C'est un message d'activation de note
             track.append(mido.Message('note_on', note=ls_noteInfo[cursor][2],  velocity=100, time=deltaTime))
         else:
+            # C'est un message de désactivation de note
             track.append(mido.Message('note_off', note=ls_noteInfo[cursor][2],  velocity=0, time=deltaTime))
 
 # Ajoute à la fin le message de fin de piste
