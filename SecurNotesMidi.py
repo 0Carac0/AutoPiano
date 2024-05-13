@@ -271,7 +271,7 @@ for cursor in range(len(ls_noteInfo)):
     # Si c'est un message d'activation
     if ls_noteInfo[cursor][1]:
 
-        # Verifie si la note n'est pas trop long temps activée sinon on raccourcit le temp
+        # Verifie si la note n'est pas trop longtemps activée sinon on raccourcit le temp
         # Va chercher en avant une désactivation de la même note
         delta = 0
         while True:

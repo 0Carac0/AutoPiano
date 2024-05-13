@@ -10,7 +10,7 @@ try:
         notesPedalManager.playNote(i, True)
         time.sleep(0.1)
         notesPedalManager.playNote(i, False)
-        time.sleep(0.5)
+        time.sleep(0.3)
     notesPedalManager.disableAll()
 
 except KeyboardInterrupt:
