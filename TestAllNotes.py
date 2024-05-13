@@ -1,7 +1,7 @@
 # Programme pour tester toutes les notes à la suite
 
 import time
-from PianoManager import NotesPedalManager
+from StructuralFunction.PianoManager import NotesPedalManager
 
 notesPedalManager = NotesPedalManager()
 

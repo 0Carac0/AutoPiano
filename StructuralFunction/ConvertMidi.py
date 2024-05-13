@@ -1,7 +1,7 @@
 import mido
 
 # Fonction à appeler pour convertir un fichier midi
-def SecurNotesMidi(
+def convertMidi(
         midiFile, 
         MinTimeOffPedal=0.2, 
         MinTimeOffNote=0.1, 

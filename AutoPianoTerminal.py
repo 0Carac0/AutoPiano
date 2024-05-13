@@ -2,7 +2,7 @@
 
 from alive_progress import alive_bar
 from tkinter import filedialog
-from PianoManager import *
+from StructuralFunction.PianoManager import PianoManager
 import os
 import time
 

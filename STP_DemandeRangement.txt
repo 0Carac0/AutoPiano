@@ -1,0 +1,9 @@
+Noé, J'ai pas tout comprit mais t'a l'air d'avoir fusionné nos deux projets mais vu le petit borel que ça à fait. J'ai essaié d'organniser comme je pouvais.
+
+Peux-tu ranger ton projet pour n'avoir que les scripts executables par l'utilisateur dans la première arborescence comme webMenu.py et le reste dans un fichier.
+Je pense que list.json, playing.json, WebAppPlayingMusic.json, templates et static devrais être dans un sous dossier comme par exemple celui de Webapp.
+J'ai aucune idée de comment sont rangé tes dossiers et je veux pas trop foutre le bazzard mais si on evite que le projet parte dans tous les sens ça serait cool.
+
+J'ai creer un dossier qui contient les fonctions principales du projet et j'ai adapté les chemins dans webMenu.py.
+
+Et si jamais ont peut supprimer tout ce qu'il y a dans Harchive.

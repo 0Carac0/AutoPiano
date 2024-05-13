@@ -4,7 +4,8 @@ from tkinter import font
 from tkinter import filedialog
 import sys
 import json
-from SecurNotesMidiFunction import SecurNotesMidi
+from StructuralFunction.ConvertMidi import convertMidi
+#from .. StructuralFunction.ConvertMidi import convertMidi
 
 # ls_   |   List
 # lb_   |   Label
@@ -37,7 +38,7 @@ def submit():
 
     if isCorectEnterys:
 
-        if SecurNotesMidi(
+        if convertMidi(
             filePath, 
             MinTimeOffPedal=ls_en_time_float[0], 
             MinTimeOffNote=ls_en_time_float[1], 
@@ -136,7 +137,7 @@ CurrentRow += 1
 midiFile = mido.MidiFile(filePath)
 
 # Extrait la liste des instruments dans les fichiers midi
-with open('ListeNomPisteMidi.json', 'r') as f:
+with open('StructuralFunction\\ListeNomPisteMidi.json', 'r') as f:
     ls_NameInstrument = json.load(f)["listTrackName"]
 
 # Affichage de la liste des pistes

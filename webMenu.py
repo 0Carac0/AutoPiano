@@ -3,9 +3,8 @@ import requests
 from markupsafe import escape
 import os
 import json
-from PianoManager import PianoManager
-from convertisseur import convert
-
+from StructuralFunction.PianoManager import PianoManager
+from StructuralFunction.ConvertMidi import convertMidi
 
 def same(var1, var2 = 1) :												# Petite fonction simple qui permet de comparer deux variables de types différents en les convertissant temporairement en 'str'
 	if str(var1) == str(var2) :
@@ -145,7 +144,7 @@ def getData(cursor = "all", convOnly = 0, refresh = 1) :								# Arguments : 'c
 			if len(i) > 5 :
 				if (i + "_Conv") not in listConv and i[-5:] != '_Conv' :
 					musicPath = getPath(2)
-					if convert(musicPath + "/" + i + ".mid") :
+					if convertMidi(musicPath + "/" + i + ".mid") :
 						listConv.append(i + "_Conv")
 					else :
 						print("Convert échoué")

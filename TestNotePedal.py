@@ -2,7 +2,7 @@
 # Si on tape 0, cela testera la pédale et les touches sont situé entre 21 et 96.
 
 import time
-from PianoManager import NotesPedalManager
+from StructuralFunction.PianoManager import NotesPedalManager
 
 notesPedalManager = NotesPedalManager()
 
