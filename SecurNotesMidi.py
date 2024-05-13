@@ -1,460 +1,186 @@
-
 import mido
+import tkinter as tk
+from tkinter import font
 from tkinter import filedialog
 import sys
+import json
+from SecurNotesMidiFunction import SecurNotesMidi
 
-# Paramètre de base
-MinTimeOffPedal = 0.2
-MinTimeOffNote = 0.1
-MinTimeOnNote = 0.05
-MaxTimeOnNote = 4
+# ls_   |   List
+# lb_   |   Label
+# cb_   |   Check box
+# eb_   |   Entry box
+# bt_   |   Button
+# fn_   |   Font
+# tx_   |   Text
 
-# Sélection du fichier midi
-fichier = filedialog.askopenfilename(title="Sélectionner le fichier midi à convertir", filetypes=(("Fichier Midi", "*.mid"), ("All files", "*.*")))
-if fichier == '':
+def submit():
+
+    isCorectEnterys = True
+    # Verifie les entrées des temps
+    ls_en_time_float = []
+    try:
+        for i in range(len(ls_en_time)):
+            ls_en_time_float.append(float(ls_en_time[i].get()))
+    except ValueError:
+        Error_label.config(text="[ERROR] Un des paramètres de temps est faux.", fg="red")
+        isCorectEnterys = False
+
+    # Verifie si l'utlilisateur veux supprimer toutes les tracks
+    asAllDeletTrack = True
+    for cb_trackValue in ls_cb_trackValue:
+        if not cb_trackValue.get():
+            asAllDeletTrack = False
+    if asAllDeletTrack:
+        Error_label.config(text="[ERROR] Vous supprimez toutes les tracks.", fg="red")
+        isCorectEnterys = False
+
+    if isCorectEnterys:
+
+        if SecurNotesMidi(
+            filePath, 
+            MinTimeOffPedal=ls_en_time_float[0], 
+            MinTimeOffNote=ls_en_time_float[1], 
+            MinTimeOnNote=ls_en_time_float[2], 
+            MaxTimeOnNote=ls_en_time_float[3],
+            ls_deleteTracks= [cb_trackValue.get() for cb_trackValue in ls_cb_trackValue],
+            MesurePedal=0
+            ):
+
+            Error_label.config(text="[INFO] Le fichier midi converti a été créer au même emplacement.", fg="green")
+        else:
+            Error_label.config(text="[ERROR] Une erreur est survenue lors de la conversion.", fg="red")
+
+# Ouvrir la boîte de dialogue de sélection de fichier
+filePath = filedialog.askopenfilename(title="Sélectionner le fichier midi à convertir", filetypes=(("Fichier Midi", "*.mid"), ("All files", "*.*")))
+if filePath == '':
     print("Aucun fichier n'a été sélectionné.")
     sys.exit()
-else:
-    print("Fichier sélectionné :", fichier)
 
-# Demande les temps minimums
-MinTimeModif = False
-while not MinTimeModif:
+# Création de la fenêtre principale
+root = tk.Tk()
+root.title("Modification du fichier midi")
+root.geometry("450x800")
 
-    # Demande la modification des temps minimums
-    print("\nMinTimeOffPedal =", MinTimeOffPedal)
-    print("MinTimeOffNote  =", MinTimeOffNote)
-    print("MinTimeOnNote   =", MinTimeOnNote)
-    print("MaxTimeOnNote   =", MaxTimeOnNote)
-    ls_PrametreTime = input('\nEcrivez comme suit si vous voulez modifier les temps minimum "0.2 0.1 0.4 6" ou rien si vous voulez en modifier aucune :')
-    try:
-        
-        if not ls_PrametreTime == '':
-            # L'écrture de la réponse et convertion en tableau
-            ls_PrametreTime = [float(nombre) for nombre in ls_PrametreTime.split()]
+# Memoire de la combientième ligne en est le programme 
+CurrentRow = 0
 
-            MinTimeOffPedal = ls_PrametreTime[0]
-            MinTimeOffNote = ls_PrametreTime[1]
-            MinTimeOnNote = ls_PrametreTime[2]
-            MaxTimeOnNote = ls_PrametreTime[3]
-            
-        print("Paramètre enregistré.")
-        MinTimeModif = True
-        
-    except IndexError:
-        print('/!\\ Nombre de paramètre incorret.')
+# Configuration de la police pour les sous titres
+fn_chapter = font.Font(family="Helvetica", size=9, weight="bold")
 
-    except:
-        print('/!\\ Un des paramètres n\'est pas un chiffre.')
 
+# Création de la partie pour afficher le chemin du fichier
+
+
+# Ajout du sous-titre
+lb_TimeParameters = tk.Label(root, text='Fichier sélectinné :', font=fn_chapter)
+lb_TimeParameters.grid(row=CurrentRow, column=0, sticky='w', padx=10, pady=10)
+CurrentRow += 1
+
+# Label pour afficher le chemin du fichier
+path_label = tk.Label(root, text='... ' + filePath[-65:])
+path_label.grid(row=CurrentRow, column=0, columnspan=2, sticky='w', padx=20)
+CurrentRow += 1
+
+
+# Création de la partie pour les paramètres de temps
+
+
+# Ajout du sous-titre
+lb_TimeParameters = tk.Label(root, text='Reglage des temps [s] :', font=fn_chapter)
+lb_TimeParameters.grid(row=CurrentRow, column=0, sticky='w', padx=10, pady=10)
+CurrentRow += 1
+
+# liste des labels et des valeurs par défaut des paramètre de temps
+ls_timeParameters = (
+    # Texte pour le label                       Paramètre de base
+    ("Temps minimum pour relacher la pédale",    "0.2"),
+    ("Temps minimum pour relacher une touche",   "0.1"),
+    ("Temps minimum pour jouer une touche",      "0.05"),
+    ("Temps maximum pour maintenir une touche",  "4")
+)
+ls_en_time = []
+# Ajout des label et des entry box
+for i in range(len(ls_timeParameters)):
+
+    # Crée et place le text
+    lb_tx = tk.Label(root, text=ls_timeParameters[i][0])
+    lb_tx.grid(row=i+CurrentRow, column=0, sticky='w', padx=20)
+    
+    # Crée et place l'entry box
+    eb_time = tk.Entry(root)
+    eb_time.grid(row=i+CurrentRow, column=1)
+    # Pré-remplir l'entry box avec la valeur par défaut
+    eb_time.insert(0, ls_timeParameters[i][1])
+    # Stockage des entry box
+    ls_en_time.append(eb_time)
+    
+
+CurrentRow += len(ls_timeParameters)
+
+
+# Création de la partie pour supprimer les pistes
+
+
+# Ajout du sous-titre
+lb_TimeParameters = tk.Label(root, text='Suppression de piste :', font=fn_chapter)
+lb_TimeParameters.grid(row=CurrentRow, column=0, sticky='w', padx=10, pady=10)
+CurrentRow += 1
+
+# Label pour afficher l'utilisation des coches
+check_label = tk.Label(root, text='Cochez les pistes que vous voulez supprimer.')
+check_label.grid(row=CurrentRow, column=0, columnspan=2, sticky='w', padx=20)
+CurrentRow += 1
 
 # Lit le fichier midi et on extrait ses données
-midiFileIn = mido.MidiFile(fichier)
+midiFile = mido.MidiFile(filePath)
 
-# Liste des instruments dans les fichiers midi
-ls_NameInstrument = (
-    "Acoustic Grand Piano",
-    "Bright Acoustic Piano",
-    "Electric Grand Piano",
-    "Honky-tonk Piano",
-    "Electric Piano 1",
-    "Electric Piano 2",
-    "Harpsichord",
-    "Clavinet",
-    "Celesta",
-    "Glockenspiel",
-    "Music Box",
-    "Vibraphone",
-    "Marimba",
-    "Xylophone",
-    "Tubular Bells",
-    "Dulcimer",
-    "Drawbar Organ",
-    "Percussive Organ",
-    "Rock Organ",
-    "Church Organ",
-    "Reed Organ",
-    "Accordion",
-    "Harmonica",
-    "Tango Accordion",
-    "Acoustic Guitar (nylon)",
-    "Acoustic Guitar (steel)",
-    "Electric Guitar (jazz)",
-    "Electric Guitar (clean)",
-    "Electric Guitar (muted)",
-    "Overdriven Guitar",
-    "Distortion Guitar",
-    "Guitar Harmonics",
-    "Acoustic Bass",
-    "Electric Bass (finger)",
-    "Electric Bass (pick)",
-    "Fretless Bass",
-    "Slap Bass 1",
-    "Slap Bass 2",
-    "Synth Bass 1",
-    "Synth Bass 2",
-    "Violin",
-    "Viola",
-    "Cello",
-    "Contrabass",
-    "Tremolo Strings",
-    "Pizzicato Strings",
-    "Orchestral Harp",
-    "Timpani",
-    "String Ensemble 1",
-    "String Ensemble 2",
-    "Synth Strings 1",
-    "Synth Strings 2",
-    "Choir Aahs",
-    "Voice Oohs",
-    "Synth Choir",
-    "Orchestra Hit",
-    "Trumpet",
-    "Trombone",
-    "Tuba",
-    "Muted Trumpet",
-    "French Horn",
-    "Brass Section",
-    "Synth Brass 1",
-    "Synth Brass 2",
-    "Soprano Sax",
-    "Alto Sax",
-    "Tenor Sax",
-    "Baritone Sax",
-    "Oboe",
-    "English Horn",
-    "Bassoon",
-    "Clarinet",
-    "Piccolo",
-    "Flute",
-    "Recorder",
-    "Pan Flute",
-    "Blown Bottle",
-    "Shakuhachi",
-    "Whistle",
-    "Ocarina",
-    "Lead 1 (square)",
-    "Lead 2 (sawtooth)",
-    "Lead 3 (calliope)",
-    "Lead 4 (chiff)",
-    "Lead 5 (charang)",
-    "Lead 6 (voice)",
-    "Lead 7 (fifths)",
-    "Lead 8 (bass + lead)",
-    "Pad 1 (new age)",
-    "Pad 2 (warm)",
-    "Pad 3 (polysynth)",
-    "Pad 4 (choir)",
-    "Pad 5 (bowed)",
-    "Pad 6 (metallic)",
-    "Pad 7 (halo)",
-    "Pad 8 (sweep)",
-    "FX 1 (rain)",
-    "FX 2 (soundtrack)",
-    "FX 3 (crystal)",
-    "FX 4 (atmosphere)",
-    "FX 5 (brightness)",
-    "FX 6 (goblins)",
-    "FX 7 (echoes)",
-    "FX 8 (sci-fi)",
-    "Sitar",
-    "Banjo",
-    "Shamisen",
-    "Koto",
-    "Kalimba",
-    "Bagpipe",
-    "Fiddle",
-    "Shanai",
-    "Tinkle Bell",
-    "Agogo",
-    "Steel Drums",
-    "Woodblock",
-    "Taiko Drum",
-    "Melodic Tom",
-    "Synth Drum",
-    "Reverse Cymbal",
-    "Guitar Fret Noise",
-    "Breath Noise",
-    "Seashore",
-    "Bird Tweet",
-    "Telephone Ring",
-    "Helicopter",
-    "Applause",
-    "Gunshot"
-)
+# Extrait la liste des instruments dans les fichiers midi
+with open('ListeNomPisteMidi.json', 'r') as f:
+    ls_NameInstrument = json.load(f)["listTrackName"]
 
-# Va demander à l'utilisateur quelle piste il veut supprimer
-TrackSup = False
-NameInstrument = "[ERROR] No instrument defined"
-while not TrackSup:
-
-    # Affichage de la liste des pistes
-    print(' ')
-    for i, track in enumerate(midiFileIn.tracks):
-        j = 0
-        try:
-            while not track[j].type == 'program_change':
-                j += 1
-            NameInstrument = ls_NameInstrument[track[j].program]
-        except IndexError:
-            pass
-        print(i + 1, ')', NameInstrument)
-
-    # Demande la liste des pistes a supprimer
-    ls_trackDelete = input('\nEcrivez comme suit si vous voulez supprimer des pistes "1 3 11" ou rien si vous voulez en supprimer aucune :')
-
+# Affichage de la liste des pistes
+NameInstrument = "Piste non instrumental ou définit sur une autre piste"
+ls_cb_trackValue = []
+for i, track in enumerate(midiFile.tracks):
+    row = 0
     try:
-        
-        # L'écrture de la réponse et convertion en tableau
-        ls_nombresTrack = [int(nombre) for nombre in ls_trackDelete.split()]
-
-        # Trie la liste du plus grand au plus petit
-        ls_nombresTrack.sort(reverse=True)
-
-        # Supprime les pistes désignées
-        for nombreTrack in ls_nombresTrack:
-            if not nombreTrack == '':
-                del midiFileIn.tracks[nombreTrack - 1]
-                print('la piste', nombreTrack, 'a été supprimée.')
-
-        print(' ')  
-        TrackSup = True
-        
+        while not track[row].type == 'program_change':
+            row += 1
+        NameInstrument = ls_NameInstrument[track[row].program]
     except IndexError:
-        print('/!\\ La piste', nombreTrack, 'n\'existe pas.')
+        pass
 
-    except:
-        print('/!\\ Le numéro d\'une piste n\'est pas un chiffre.')
+    ls_cb_trackValue.append(tk.BooleanVar())
+    cb_track = tk.Checkbutton(root, text=NameInstrument, variable=ls_cb_trackValue[i])
+    cb_track.grid(row=i+CurrentRow, column=0, columnspan=2, sticky='w', padx=30)
+#del midiFileIn.tracks[nombreTrack - 1]
 
-# Verifie si l'utilisateur a supprimé toutes les pistes
-if len(midiFileIn.tracks) == 0:
-    print('/!\\ Vous avez supprimé toutes les pistes.')
-    sys.exit()
+CurrentRow += len(ls_cb_trackValue)
 
-# Creation d'une liste pour enregistrer les messages (note 20 indique la pédale)
-ls_noteInfo = []
 
-# Lancement de la musique et enregistre chaque message à quel temps il est arrivé et aussi avec la pédal
-CurrentTime = 0
-for message in midiFileIn.playNoTime():
+"""
+# Création de la partie pour ajouter la pédale
 
-    # Calcul du temps du message
-    CurrentTime += message.time
 
-    match message.type:
+# Ajout du sous-titre
+lb_TimeParameters = tk.Label(root, text='Ajout de la pédal :', font=fn_chapter)
+lb_TimeParameters.grid(row=CurrentRow, column=0, sticky='w', padx=10, pady=10)
+CurrentRow += 1
 
-        case 'note_on':
-            if message.velocity == 0:
-                # C'est un message de désactivation de note
-                ls_noteInfo.append([CurrentTime, False, message.note])
-            else:
-                # C'est un message d'activation de note
-                ls_noteInfo.append([CurrentTime, True, message.note])
+# détecte déjà des messages de pédal
 
-        case 'note_off':
-            # C'est un message de désactivation de note
-            ls_noteInfo.append([CurrentTime, False, message.note])
+"""
 
-        case 'control_change':
-            if message.control == 64:
-                if message.value == 0:
-                    # C'est un message de désactivation de pédale
-                    ls_noteInfo.append([CurrentTime, False, 20])
-                else:
-                    # C'est un message d'activation de pédale
-                    ls_noteInfo.append([CurrentTime, True, 20])
+# Bouton de validation
+bt_confirm = tk.Button(root, text="Confirmer", command=submit)
+bt_confirm.grid(row=CurrentRow, column=1, sticky='w', pady=10)
+CurrentRow += 1
 
-# Analyse des temps dans le ficher Midi et modification des ses temps
-delta = 0
-for cursor in range(len(ls_noteInfo)):
-    
-    # Si c'est un message d'activation
-    if ls_noteInfo[cursor][1]:
+# Label pour afficher les erreurs
+Error_label = tk.Label(root, text='')
+Error_label.grid(row=CurrentRow, column=0, columnspan=2, sticky='w', padx=10)
 
-        # Verifie si la note n'est pas trop long temps activée sinon on raccourcit le temp
-        # Va chercher en avant une désactivation de la même note
-        delta = 0
-        while True:
-            # A trouvé le message
-            if ls_noteInfo[cursor + delta][1] == False and ls_noteInfo[cursor + delta][2] == ls_noteInfo[cursor][2]:
-                # calcul de la difference de temps entre l'activation et la désactivation
-                deltaTime = ls_noteInfo[cursor + delta][0] - ls_noteInfo[cursor][0]
-                # Modification de la position dans le temps du message de désactivation si la difference de temps est trop grande
-                if deltaTime > MaxTimeOnNote:
-                    ls_noteInfo[cursor + delta][0] -= deltaTime - MaxTimeOnNote
-                break
-            # Si ce n'est pas le prochain message regarde encore plus en avant
-            if not (ls_noteInfo[cursor + delta][1] == False and ls_noteInfo[cursor + delta][2] == ls_noteInfo[cursor][2]):
-                delta += 1
-            # S'il est arrivé a la fin du fichier alors il passe au prochain
-            if cursor + delta >= len(ls_noteInfo):
-                break
+# Affiche la fenêtre
+root.mainloop()
 
-    # Si c'est un message de désactivation
-    else:
-
-        # Si c'est un message de pédale
-        if ls_noteInfo[cursor][2] == 20:
-
-            # Verifie si la pédal est relacher assez long temps pour que elle puisse étouffé les cordes sinon on prevoit du temp       
-            # Va chercher en avant une activation de la pédale 
-            delta = 0
-            while True:
-                # A trouvé le message
-                if ls_noteInfo[cursor + delta][1] and ls_noteInfo[cursor + delta][2] == 20:
-                    # calcul de la difference de temps entre la désactivation et l'activation
-                    deltaTime = ls_noteInfo[cursor + delta][0] - ls_noteInfo[cursor][0]
-                    # Modification de la position dans le temps du message d'activation si la difference de temps est trop petite
-                    if deltaTime < MinTimeOffPedal:
-                        ls_noteInfo[cursor][0] -= MinTimeOffPedal - deltaTime
-                    break
-                # Si ce n'est pas le prochain message regarde encore plus en avant
-                if not (ls_noteInfo[cursor + delta][1] and ls_noteInfo[cursor + delta][2] == 20):
-                    delta += 1
-                # S'il est arrivé a la fin du fichier alors il passe au prochain calcul de message
-                if cursor + delta >= len(ls_noteInfo):
-                    break
-
-        # Si c'est un message de note
-        else:
-
-            # Verifie si la note est relachée assez long temps pour qu'elle puisse retaper les cordes sinon on prevoit du temps
-            # Va chercher en avant une activation de la même note 
-            delta = 0
-            while True:
-                # A trouvé le message
-                if ls_noteInfo[cursor + delta][1] and ls_noteInfo[cursor + delta][2] == ls_noteInfo[cursor][2]:
-                    # calcul de la difference de temps entre la désactivation et l'activation
-                    deltaTime = ls_noteInfo[cursor + delta][0] - ls_noteInfo[cursor][0]
-                    # Modification de la position dans le temps du message d'activation si la difference de temps est trop petite
-                    if deltaTime < MinTimeOffNote:
-                        ls_noteInfo[cursor][0] -= MinTimeOffNote - deltaTime
-                    else:
-                        # Mais sinon aussi verifie si la note est jouée assez long temps pour que le martau arrive à la corde.
-                        # Va chercher en arrière une activation de la même note
-                        delta = 0
-                        while True:
-                            # A trouvé le message
-                            if ls_noteInfo[cursor + delta][1] and ls_noteInfo[cursor + delta][2] == ls_noteInfo[cursor][2]:
-                                # calcul de la difference de temps entre l'activation et la désactivation
-                                deltaTime = ls_noteInfo[cursor][0] - ls_noteInfo[cursor + delta][0]
-                                # Modification de la position dans le temps du message de désactivation si la difference de temps est trop petite
-                                if deltaTime < MinTimeOnNote:
-                                    ls_noteInfo[cursor][0] += MinTimeOnNote - deltaTime
-                                break
-                            # Si ce n'est pas le précédent message regarde encore plus en arrière
-                            if not (ls_noteInfo[cursor + delta][1] and ls_noteInfo[cursor + delta][2] == ls_noteInfo[cursor][2]):
-                                delta -= 1
-                            # S'il est arrivé au début du fichier alors il passe au prochain calcul de message
-                            if cursor + delta < 0:
-                                break
-                    break
-                if not (ls_noteInfo[cursor + delta][1] and ls_noteInfo[cursor + delta][2] == ls_noteInfo[cursor][2]):
-                    delta += 1
-                # S'il est arrivé a la fin du fichier alors il regarde pour la seconde verification
-                if cursor + delta >= len(ls_noteInfo):
-                    # Qui verifie si la note est jouée assez long temps pour que le martau arrive à la corde.
-                    # Va chercher en arrière une activation de la même note
-                    delta = 0
-                    while True:
-                        # A trouvé le message
-                        if ls_noteInfo[cursor + delta][1] and ls_noteInfo[cursor + delta][2] == ls_noteInfo[cursor][2]:
-                            # calcul de la difference de temps entre l'activation et la désactivation
-                            deltaTime = ls_noteInfo[cursor][0] - ls_noteInfo[cursor + delta][0]
-                            # Modification de la position dans le temps du message de désactivation si la difference de temps est trop petite
-                            if deltaTime < MinTimeOnNote:
-                                ls_noteInfo[cursor][0] += MinTimeOnNote - deltaTime
-                            break
-                        # Si ce n'est pas le précédent message regarde encore plus en arrière
-                        if not (ls_noteInfo[cursor + delta][1] and ls_noteInfo[cursor + delta][2] == ls_noteInfo[cursor][2]):
-                            delta -= 1
-                        # S'il est arrivé au début du fichier alors il passe au prochain calcul de message
-                        if cursor + delta < 0:
-                            break
-                    break
-
-ls_noteInfo.sort(key=lambda x: x[0])
-
-# Arondit les temps à la milli seconde
-for noteInfo in ls_noteInfo:
-    noteInfo[0] = round(noteInfo[0], 3)
-
-# Va chercher le tempo de la musique
-isFind = False
-for track in midiFileIn.tracks:
-    if isFind:
-        break
-    for msg in track:
-        if msg.type == 'set_tempo':
-            tempo = msg.tempo
-            isFind = True
-            break
-
-# Va chercher le message de la time signature de la musique
-isFind = False
-for track in midiFileIn.tracks:
-    if isFind:
-        break
-    for msg in track:
-        if msg.type == 'time_signature':
-            MessageTimeSignature = msg
-            isFind = True
-            break
-
-# set le tick per beat
-ticksPerBeat = 360
-
-# Réecrit la mémoire ls_noteInfo en un fichier midi
-
-# Créer une nouvelle piste avec des messages
-track = mido.MidiTrack()
-
-# Ajouter le message du time signature
-track.append(MessageTimeSignature)
-
-# Ajouter le message du tempo
-track.append(mido.MetaMessage('set_tempo', tempo=tempo))
-
-# Ajouter le message qui indique que c'est un piano
-track.append(mido.Message('program_change', program=0))
-
-# Ajoute les notes dans la track
-for cursor in range(len(ls_noteInfo)):
-
-    # Calcul du temp dans le message
-    if cursor == 0:
-        deltaTime = 0
-    else:
-        deltaTime = mido.second2tick(ls_noteInfo[cursor][0] - ls_noteInfo[cursor - 1][0], ticksPerBeat, tempo)
-
-    if ls_noteInfo[cursor][2] == 20:
-        if ls_noteInfo[cursor][1]:
-            # C'est un message d'activation de pédal
-            track.append(mido.Message('control_change', control=64,  value=100, time=deltaTime))
-        else:
-            # C'est un message de désactivation de pédal
-            track.append(mido.Message('control_change', control=64,  value=0, time=deltaTime))
-    else:
-        if ls_noteInfo[cursor][1]:
-            # C'est un message d'activation de note
-            track.append(mido.Message('note_on', note=ls_noteInfo[cursor][2],  velocity=100, time=deltaTime))
-        else:
-            # C'est un message de désactivation de note
-            track.append(mido.Message('note_off', note=ls_noteInfo[cursor][2],  velocity=0, time=deltaTime))
-
-# Ajoute à la fin le message de fin de piste
-track.append(mido.MetaMessage('end_of_track', time=0))
-
-# Créer un objet MidiFile et ajouter la piste
-midiFileOut = mido.MidiFile() 
-
-# Set le ticksPerBeat 
-midiFileOut.ticks_per_beat = ticksPerBeat
-
-# Ajoute la track au fichier midi
-midiFileOut.tracks.append(track)
-
-# Enregistrer le fichier MIDI
-midiFileOut.save(fichier[:fichier.rfind('.')] + '_Conv.mid')
-
-print('Midi convertit')

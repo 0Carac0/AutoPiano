@@ -126,8 +126,8 @@ class ChipBoard():
 
     # Méthode pour désactiver toutes les pins
     def disableAllPins(self):
-        self.writeRegister(ChipBoard.MCP23S17_GPIOA, 0x00)
-        self.writeRegister(ChipBoard.MCP23S17_GPIOB, 0x00)
+        self.__writeRegister(ChipBoard.MCP23S17_GPIOA, 0x00)
+        self.__writeRegister(ChipBoard.MCP23S17_GPIOB, 0x00)
         self._GPIOA     = 0
         self._GPIOB     = 0
 
@@ -139,8 +139,8 @@ class PianoManager():
         self._isReady = False                                                            # Indique si le thread est pret à lancer une musique
         self._threadpianoManagerEvent = threading.Event()                               # Créer un event pour relancer le thread de la musique
         self._threadpianoManager = threading.Thread(target=self.execute, daemon=True)   # Création du thread pour pianoManager
-        self._threadpianoManager.start()                                                 # Lance le thread PianoManager
         self._notesPedalManager = NotesPedalManager()                                    # Objet qui gère les notes et la pédal
+        self._threadpianoManager.start()                                                 # Lance le thread PianoManager
 
     # Méthode qui lance la musique
     def play(self, PathMidi):
