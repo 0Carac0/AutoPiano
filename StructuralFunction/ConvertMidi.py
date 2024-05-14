@@ -87,6 +87,7 @@ def convertMidi(
                 if not modifTimeMsg(ls_noteInfo, cursor, False, False, MinTimeOffNote):
                     modifTimeMsg(ls_noteInfo, cursor, True, False, MinTimeOnNote)
                 modifTimeMsg(ls_noteInfo, cursor, True, True, MaxTimeOnNote)
+            ls_noteInfo.sort(key=lambda x: x[0])
 
     # Va chercher le tempo dans la musique midi
     isFind = False
@@ -109,8 +110,6 @@ def convertMidi(
                 MessageTimeSignature = msg
                 isFind = True
                 break
-
-    ls_noteInfo.sort(key=lambda x: x[0])
 
     # Arondit les temps à la milli seconde
     for noteInfo in ls_noteInfo:
