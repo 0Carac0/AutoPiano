@@ -102,6 +102,10 @@ def convertMidi(
                 isFind = True
                 break
 
+    if not isFind:
+        print('[ERROR] Message du Tempo non trouvé.')
+        return False
+
     # Va chercher le message de la time signature dans la musique midi
     isFind = False
     for track in midiMusic.tracks:
@@ -112,6 +116,10 @@ def convertMidi(
                 MessageTimeSignature = msg
                 isFind = True
                 break
+
+    if not isFind:
+        print('[INFO] Message du de la time signature non trouvé.')
+        MessageTimeSignature = mido.MetaMessage('time_signature', numerator=4, denominator=4, clocks_per_click=24, notated_32nd_notes_per_beat=8, time=0)
 
     # Arondit les temps à la milli seconde
     for noteInfo in ls_noteInfo:
