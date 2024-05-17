@@ -1,10 +1,16 @@
-from flask import Flask, redirect, url_for, render_template, request
+from flask import Flask, flash, redirect, url_for, render_template, request
+from werkzeug.utils import secure_filename
 import requests
 from markupsafe import escape
 import os
 import json
-from StructuralFunction.PianoManager import PianoManager
-from StructuralFunction.ConvertMidi import convertMidi
+from PianoManager import PianoManager
+from convertisseur import convert
+
+
+def preturn(arg) :
+	print(arg)
+	return(arg)
 
 def same(var1, var2 = 1) :												# Petite fonction simple qui permet de comparer deux variables de types différents en les convertissant temporairement en 'str'
 	if str(var1) == str(var2) :
@@ -12,6 +18,17 @@ def same(var1, var2 = 1) :												# Petite fonction simple qui permet de com
 	else :
 		return 0
 
+
+""" digFolder : Explore un répertoire et retourne les fichiers '.mid' trouvés
+Arguments :
+'initialPath' - chemin du dossier principal dans lequel se trouve le
+	dossier à explorer
+'folderPath' - nom du dossier à explorer
+
+Fonction récursive qui explore le dossier 'folderPath', puis ouvre 
+chaque dossier interne et récupère chaque chemin de fichier de type '.mid'.
+Les chemins des fichiers sont donnés à partir de 'initialPath'.
+"""
 def digFolder(initialPath, folderPath) :								# Arguments : 'initialPath' = le chemin du dossier 'Musique_midi' contenant les musiques | 'folderPath' = le chemin "supplémentaire" du dossier en cours d'analyse à partir de 'Musique_midi' - - - Cette fonction récursive ouvre un dossier, récupère les chemins des fichiers et ouvre tous les autres dossiers pour récupérer chaque fichier existant dans toute l'arborescence.
 	totalPath = initialPath + "/" + folderPath
 	#print(totalPath)
@@ -31,12 +48,20 @@ def digFolder(initialPath, folderPath) :								# Arguments : 'initialPath' = le
 			pass
 	return listMusic													# Renvoie la liste des musiques trouvées par la fonction (et par chacune de ses itérations internes, s'il y en a eu)
 
+""" getPath : Cherche dans quel répertoire se trouve le programme
+Arguments :
+'number' - Permet d'obtenir uniquement le chemin qui nous intéresse ;
+	1 pour le chemin du programme actuel,
+	2 pour le chemin du dossier des musiques
+	3 pour le chemin du fichier 'playing.json'
+'debug' - 
+"""
 def getPath(number = "all", debug = 0) :								# Arguments : 'number' à mettre à 1 / 2 / 3 pour obtenir respectivement le chemin du programme 'webMenu.py', celui du dossier 'Musique_midi' contenant les musiques ou celui du fichier 'playing.json' contenant le nom de la musique en train d'être jouée (renvoie les trois en même temps si on laisse la valeur par défaut) | 'debug' à mettre à 1 pour obtenir le chemin dans lequel devrait normalement se trouver le dossier des musiques
 	initPath = os.path.dirname(__file__)								# Enregistre le chemin actuel du fichier
 	folderPath = str(os.path.normpath(initPath + os.sep + os.pardir))	# Équivalent à 'initPath', mais avec un retour en arrière
 	
 	musicPath = 0
-	for i in ("", "s ", "s_", " ", "_") :								# Cherche un dossier appelé 'Musique_midi' (accepte certaines variations telles que 'Musiques midi' ou 'Musiquemidi' grâce à la boucle 'for')
+	for i in ("s_", "_", "", "s ", " ") :								# Cherche un dossier appelé 'Musique_midi' (accepte certaines variations telles que 'Musiques midi' ou 'Musiquemidi' grâce à la boucle 'for')
 		#print (initPath + "/Musique" + i + "midi")
 		if os.path.exists(initPath + "/Musique" + i + "midi") or debug :
 			musicPath = initPath + "/Musique" + i + "midi"				# Enregistre le chemin du dossier des musiques (équivalent au chemin du programme actuel mais en remplaçant le dernier répertoire par 'Musique_midi')
@@ -50,7 +75,7 @@ def getPath(number = "all", debug = 0) :								# Arguments : 'number' à mettre
 			data["Currently playing"] = "0"
 			json.dump(data, f, indent = 4)								# ...puis rempli avec la donnée 'Currently_playing'. 
 			
-			# Note : On aurait également pu utiliser un bête fichier texte (='.txt'), moins lourd et moins contraignant si l'on ne veut qu'y écrire une seule donnée. 
+			# Note : On aurait également pu utiliser un bête fichier texte (='.txt'), moins lourd et moins contraignant si l'on ne veut y écrire qu'une seule donnée. 
 			# On utilise ici un fichier 'json' car, dans le futur, si un apprenti veut rajouter une fonction de "liste des musiques en attente" ou de "playlist", 
 			# il lui sera plus simple de travailler en partant d'une base en 'json' qu'en partant sur une base en 'txt'
 			
@@ -110,7 +135,7 @@ def refreshData() :														# Synchronise la liste des musiques avec les fi
 		print(f"Aucune musique détectée dans le répertoire {musicPath}")
 		return 0														# S'il y a eu un problème (dossier mal nommé/inexistant ou absence de musiques dans ledit dossier), renvoie la valeur 0
 
-def getData(cursor = "all", convOnly = 0, refresh = 1) :								# Arguments : 'cursor' pour obtenir une variable spécifique au lieu de la liste complète / 'refresh' à mettre à zéro pour consulter la database sans la mettre à jour
+def getData(cursor = "all", convOnly = 0, refresh = 1) :				# Arguments : 'cursor' pour obtenir une variable spécifique au lieu de la liste complète / 'refresh' à mettre à zéro pour consulter la database sans la mettre à jour
 	musicPath = getPath(2)
 	databaseOK = 0
 	if same(refresh, 0) :												# Si le programme veut uniquement lire le fichier 'list.json' (la liste des musiques) sans le réecrire...
@@ -144,11 +169,14 @@ def getData(cursor = "all", convOnly = 0, refresh = 1) :								# Arguments : 'c
 			if len(i) > 5 :
 				if (i + "_Conv") not in listConv and i[-5:] != '_Conv' :
 					musicPath = getPath(2)
-					if convertMidi(musicPath + "/" + i + ".mid") :
-						listConv.append(i + "_Conv")
-					else :
-						print("Convert échoué")
-						listConv.append(i)
+					try :
+						if convert(musicPath + "/" + i + ".mid") :
+							listConv.append(i + "_Conv")
+						else :
+							print("Convert échoué")
+							listConv.append(i)
+					except :
+						print("\nConvert échoué ET convertisseur non-sécurisé (retourne une erreur au lieu d'un 0)\n")
 		if convOnly == 1 :
 			listMusic = []
 			listMusic = listConv
@@ -172,6 +200,8 @@ def getData(cursor = "all", convOnly = 0, refresh = 1) :								# Arguments : 'c
 
 
 app = Flask(__name__, static_url_path='/static')
+app.config['UPLOAD_FOLDER'] = getPath(2)
+
 print(" >", app, "on path", "'" + getPath(1) + "'")
 
 pianoManager = PianoManager()
@@ -184,7 +214,6 @@ def main_menu():
 	refreshData()
 	return render_template('mainMenu.php')
 
-# Affiche la page web "de base", pour l'URL 'http://<IP>/'
 @app.route('/play', methods = ["POST", "GET"])
 def drop_down():
 	with open(getPath(1) + "/list.json", "r") as f :
@@ -208,8 +237,7 @@ def drop_down():
 		#print(musicData)
 		return render_template('dropDown.php', imgPath = getPath(1) + "/", data = musicData, modeTxt = modeText, buttonTxt = buttonText)		# Affiche le fichier 'dropDown.php', qui est écrit en HTML (partie texte) avec quelques intégrations PHP (partie dynamique), en lui envoyant la liste des musiques mise à jour (via 'getData()') en tant qu'argument
 
-
-# Récupère le choix selectionné sur le site web une fois que la page 'http://<IP>/music/' s'ouvre
+# Récupère le choix selectionné sur le site web une fois que la page 'http://<IP>/music' s'ouvre
 @app.route('/music', methods = ["POST", "GET"])
 def music():
 	if request.method == "POST" :
@@ -225,9 +253,24 @@ def music():
 				
 		print (musicToPlay)
 		
-		pianoManager.play(getPath(2) + "/" + musicToPlay + ".mid")
-			
-		return render_template('playing.php', data = musicToPlay)	
+		musicToDisplay = musicToPlay
+		if len(musicToPlay) > 40 :
+			musicToDisplay = ""
+			for i in range(len(musicToPlay)) :
+				print(i, "-", musicToPlay[1])
+				print("Music to play -", musicToPlay)
+				print("Music to display -", musicToDisplay)
+				print (musicToPlay[i])
+				if len(musicToDisplay) >= 35 :
+					if (i > 40 and not "\n" in musicToDisplay[-40:]) or (i >= 30 and musicToPlay[i] in (" ", "_", "-") and not "\n" in musicToDisplay[-30:]) :
+						musicToDisplay += "\n"
+				musicToDisplay += musicToPlay[i]
+				print(musicToDisplay)
+		try :
+			pianoManager.play(preturn(getPath(2) + "/" + musicToPlay + ".mid"))
+			return render_template('playing.php', data = musicToDisplay)
+		except :
+			return render_template('error.php', errType = f"La musique '{musicToPlay}' n'est pas jouable.")	
 	else :
 		return "Échec de la méthode"
 
@@ -243,8 +286,6 @@ def stop_music():
 	else :
 		return "Échec de la méthode"
 
-
-# Affiche la page web "de base", pour l'URL 'http://<IP>/'
 @app.route('/settings', methods = ["POST", "GET"])
 def settings():
 	if request.method == "POST" :
@@ -266,9 +307,17 @@ def settings():
 	else :
 		return "Erreur"
 
-@app.route('/listedit')
+@app.route('/addMusic', methods = ["POST", "GET"])
 def listedit():
-	return "<p>Pouf pouf {}</p>"
+	return render_template('uploadFile.php')	
+
+@app.route('/upload',  methods = ["POST", "GET"])
+def addMusic() :
+	uploadMusic = request.files['file']
+	print("YAYYY")
+	if uploadMusic.filename != '' :
+		uploadMusic.save(os.path.join(app.config['UPLOAD_FOLDER'], uploadMusic.filename))
+	return redirect(url_for('listedit'))
 
 @app.route('/howitworks')
 def howitworks():

@@ -1,28 +1,90 @@
+p {
+	color: black;
+	padding: 0.3rem
+}
 html {
-	font-family: sans-serif; background: #eee; padding: 1rem;
+	background-color: #5ab9ea;											/* Couleur de fond*/
+	font-family: sans-serif;
+	font-size: 30px;
+	padding: 0.5rem;
 }
 body {
-	max-width: 960px; margin: 0 auto; background: white;
+	max-width: auto;
+	margin: 0.5 rem;													/* Taille des marges */
+	background: #84ceeb													/* Couleur derrière le texte */
 }
-p {
-	color: red
-	
+h1 {
+	font-family: serif;
+	margin: 1rem 0;
+}
+
+hr {
+	border: none;
+	border-top: 1px solid lightgray;
+}
+select {
+	width: 800px;
+	height: 40px;
+	font-size: 25px;
+}
+.bandeau {
+   background: #8860d0;													/* Couleur du bandeau d'en-tête */
+   border-bottom: 2px solid white ;										/* Couleur de la ligne sous le bandeau */
+   
+}
+.etml {
+	color: white;
+	font-size: 100px;
+	position: top;
+	display: inline-block;
+	position: absolute;
+	top: 0.3rem;
+	padding: 0.3rem;
+	height: 20px;
+}
+.logo {
+	height: 2rem;
+	size: auto;
+	padding: 0.3rem
+}
+.boxButton {
+	padding: 0.3rem;
+}
+.optionButton {
+	display: block;
+	width: 800px;
+	height: 40px;
+	font-size: 25px;
 }
 
 
+/*
+nav {
+	background: lightgray;
+	display: flex;
+	align-items: center;
+	padding: 0 0.5rem;
+}
 
-html { font-family: sans-serif; background: #eee; padding: 1rem; }
-body { max-width: 960px; margin: 0 auto; background: white; }
-h1 { font-family: serif; color: #377ba8; margin: 1rem 0; }
-a { color: #377ba8; }
-hr { border: none; border-top: 1px solid lightgray; }
-nav { background: lightgray; display: flex; align-items: center; padding: 0 0.5rem; }
-nav h1 { flex: auto; margin: 0; }
-nav h1 a { text-decoration: none; padding: 0.25rem 0.5rem; }
-nav ul  { display: flex; list-style: none; margin: 0; padding: 0; }
-nav ul li a, nav ul li span, header .action { display: block; padding: 0.5rem; }
- 
- 
+nav h1 {
+	flex: auto;
+	margin: 0;
+}
+nav h1 a {
+	text-decoration: none;
+	padding: 0.25rem 0.5rem;
+}
+nav ul  {
+	display: flex;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+nav ul li a, nav ul li span, header .action {
+	display: block;
+	padding: 0.5rem;
+}
+
 .flash { margin: 1em 0; padding: 1em; background: #cae6f6; border: 1px solid #377ba8; }
 .post > header { display: flex; align-items: flex-end; font-size: 0.85em; }
 .post > header > div:first-of-type { flex: auto; }
@@ -31,4 +93,4 @@ nav ul li a, nav ul li span, header .action { display: block; padding: 0.5rem; }
 .post .body { white-space: pre-line; }
 .content:last-child { margin-bottom: 0; }
 .content form { margin: 1em 0; display: flex; flex-direction: column; }
-.content label { font-weight: bold; margin-bottom: 0.5em; }
+.content label { font-weight: bold; margin-bottom: 0.5em; }*/
