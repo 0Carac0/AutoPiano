@@ -155,22 +155,38 @@ for i, track in enumerate(midiFile.tracks):
     ls_cb_trackValue.append(tk.BooleanVar())
     cb_track = tk.Checkbutton(root, text=NameInstrument, variable=ls_cb_trackValue[i])
     cb_track.grid(row=i+CurrentRow, column=0, columnspan=2, sticky='w', padx=30)
-#del midiFileIn.tracks[nombreTrack - 1]
 
 CurrentRow += len(ls_cb_trackValue)
 
-
 """
 # Création de la partie pour ajouter la pédale
-
 
 # Ajout du sous-titre
 lb_TimeParameters = tk.Label(root, text='Ajout de la pédal :', font=fn_chapter)
 lb_TimeParameters.grid(row=CurrentRow, column=0, sticky='w', padx=10, pady=10)
 CurrentRow += 1
 
-# détecte déjà des messages de pédal
+# détecte déjà s'il y a des messages de pédale
+isFindPedal = False
+for track in midiFile.tracks:
+    if isFindPedal:
+        break
+    for msg in track:
+        if msg.type == 'control_change':
+            if msg.control == 64:
+                isFindPedal = True
+                break
 
+# S'il y a déjà des messages de pédale alors on ne propose pas d'en rajouter
+if isFindPedal:
+    print("Pas Pedal")
+    pass
+else:
+    # Coche pour ajouter oui ou non la pédale
+    cb_pedalValue = tk.BooleanVar()
+    cb_pedal = tk.Checkbutton(root, text='Ajouter les messages de pédal', variable=cb_pedalValue)
+    cb_pedal.grid(row=CurrentRow, column=0, columnspan=2, sticky='w', padx=20)
+    CurrentRow += 1
 """
 
 # Bouton de validation

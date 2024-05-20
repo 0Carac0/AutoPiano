@@ -21,10 +21,10 @@ try:
 
         # Affiche une barre de progression de la musique dans le terminal
         with alive_bar(pianoManager.totalTimeMusic(fichier), title='Playing', length=20, bar='smooth', spinner="notes2") as bar:
-            while not pianoManager.isStoped:
+            while pianoManager.isPlaying:
                 time.sleep(1)
                 bar()
-        pianoManager.threadJoin()
+        pianoManager.waitEndMusic()
 
     else:
         # Si aucun fichier n'est sélectionné, le programme s'arrête.

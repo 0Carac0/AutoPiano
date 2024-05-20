@@ -8,14 +8,14 @@ def convertMidi(
         MinTimeOnNote=0.05, 
         MaxTimeOnNote=4,
         ls_deleteTracks=[],
-        MesurePedal=0
+        MesurePedalSecond=0
         ):
 
     # Lit le fichier midi et on extrait ses données
     try:
         midiMusic = mido.MidiFile(midiFile)
     except:
-        print('[ERROR] File not found.')
+        print('[ERROR] File not found."', midiFile, '"')
         return False
 
     # Supprime les pistes désignées
@@ -45,35 +45,35 @@ def convertMidi(
                     yield msg
     """
 
-    CurrentTime = 0
+    currentTime = 0
     for message in midiMusic.playNoTime():
 
         # Calcul du temps du message
-        CurrentTime += message.time
+        currentTime += message.time
 
         match message.type:
 
             case 'note_on':
                 if message.velocity == 0:
                     # C'est un message de désactivation de note
-                    ls_noteInfo.append([CurrentTime, False, message.note])
+                    ls_noteInfo.append([currentTime, False, message.note])
                 else:
                     # C'est un message d'activation de note
-                    ls_noteInfo.append([CurrentTime, True, message.note])
+                    ls_noteInfo.append([currentTime, True, message.note])
 
             case 'note_off':
                 # C'est un message de désactivation de note
-                ls_noteInfo.append([CurrentTime, False, message.note])
+                ls_noteInfo.append([currentTime, False, message.note])
 
             case 'control_change':
                 if message.control == 64:
                     if message.value == 0:
                         # C'est un message de désactivation de pédale
-                        ls_noteInfo.append([CurrentTime, False, 20])
+                        ls_noteInfo.append([currentTime, False, 20])
                     else:
                         # C'est un message d'activation de pédale
-                        ls_noteInfo.append([CurrentTime, True, 20])
-
+                        ls_noteInfo.append([currentTime, True, 20])
+        
     # Analyse des temps dans le ficher Midi et modification des ses temps
     delta = 0
     for cursor in range(len(ls_noteInfo)):
@@ -88,6 +88,26 @@ def convertMidi(
                     modifTimeMsg(ls_noteInfo, cursor, True, False, MinTimeOnNote)
                 modifTimeMsg(ls_noteInfo, cursor, True, True, MaxTimeOnNote)
 
+    # Réorgination de la liste suivant les temps
+    ls_noteInfo.sort(key=lambda x: x[0])
+
+    # Ajout des messages de pédale suivant le tempo et la time signature
+    if not MesurePedalSecond == 0:
+        currentTime = MesurePedalSecond
+        MusicMaxTime = ls_noteInfo[len(ls_noteInfo)][0]
+
+        # Ajout du premier message d'activation
+        ls_noteInfo.append([0, True, 20])
+
+        # Ajout de la suite des messages
+        while currentTime < MusicMaxTime:
+            ls_noteInfo.append([currentTime - MinTimeOffPedal, False, 20])
+            ls_noteInfo.append([currentTime, True, 20])
+            currentTime += MesurePedalSecond
+
+        # Ajout du dernier message de désactivation
+        ls_noteInfo.append([MusicMaxTime, False, 20])
+    
     # Réorgination de la liste suivant les temps
     ls_noteInfo.sort(key=lambda x: x[0])
 
